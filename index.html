@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Sign in - Google</title>
+<style>
+  :root{
+    --accent:#1a73e8;
+    --bg:#f5f7fb;
+    --card-w:420px;
+    --muted:#5f6368;
+    --text:#202124;
+  }
+  html,body{height:100%;margin:0;font-family:Inter, Roboto, "Helvetica Neue", Arial, sans-serif;background:var(--bg);color:var(--text)}
+  /* fake browser bar */
+  .browser-bar{
+    height:44px;background:linear-gradient(#f6f7f9,#eef1f5);
+    display:flex;align-items:center;gap:12px;padding:6px 12px;box-shadow:0 1px 0 rgba(0,0,0,0.06);
+  }
+  .browser-left{display:flex;align-items:center;gap:8px}
+  .dot{width:11px;height:11px;border-radius:50%;opacity:.95}
+  .d1{background:#ff5f57}.d2{background:#ffbd2e}.d3{background:#28c840}
+  .url-bar{display:flex;align-items:center;gap:10px;background:#fff;border-radius:6px;padding:6px 10px;box-shadow:inset 0 -1px 0 rgba(0,0,0,.03);min-width:220px;flex:1;max-width:700px;font-size:13px;color:var(--muted)}
+  .padlock{display:flex;align-items:center;gap:8px}
+  .not-secure{color:#d93025;font-weight:700}
+  .fake-domain{font-weight:600;color:#3c4043;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:360px}
+
+  /* center */
+  .wrap{display:flex;align-items:flex-start;justify-content:center;padding:36px 16px;}
+  .card{width:100%;max-width:var(--card-w);background:#fff;border-radius:12px;padding:28px 32px;box-shadow:0 8px 30px rgba(60,64,67,.08)}
+  .logo{font-size:34px;letter-spacing:-3px;text-align:center;margin-bottom:12px}
+  .logo span:nth-child(1){color:#4285F4}
+  .logo span:nth-child(2){color:#EA4335}
+  .logo span:nth-child(3){color:#FBBC05}
+  .logo span:nth-child(4){color:#4285F4}
+  .logo span:nth-child(5){color:#34A853}
+  .logo span:nth-child(6){color:#EA4335}
+  h1{font-size:20px;margin:6px 0 2px}
+  p.sub{margin:0;color:var(--muted);font-size:14px}
+
+  .field{margin-top:18px}
+  input[type="email"], input[type="password"]{width:100%;padding:12px;border-radius:8px;border:1px solid #dadce0;font-size:15px;box-sizing:border-box}
+  input:focus{box-shadow:0 1px 0 rgba(26,115,232,.06);border-color:#c1d9ff}
+  .actions{display:flex;justify-content:space-between;align-items:center;margin-top:18px}
+  .link{color:var(--accent);text-decoration:none;font-weight:600;font-size:14px}
+  .btn{background:var(--accent);color:#fff;padding:10px 14px;border-radius:8px;border:none;font-weight:600;cursor:pointer;box-shadow:0 2px 0 rgba(26,115,232,.12)}
+  .btn.secondary{background:#b61b1b}
+  .small-muted{font-size:12px;color:var(--muted);margin-top:14px}
+
+  /* captured preview */
+  .captured{margin-top:14px;background:#f7f7f7;border-radius:8px;padding:10px;font-family:monospace;font-size:13px;color:#222;white-space:pre-wrap}
+
+  /* overlay edu (appears 60s later) - hidden initially */
+  .edu-modal{
+    position:fixed;inset:0;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;visibility:hidden;opacity:0;transition:opacity .25s,visibility .25s;z-index:8000;
+  }
+  .edu-modal.show{visibility:visible;opacity:1}
+  .edu-box{background:#fff;padding:24px;border-radius:12px;max-width:780px;width:92%;box-shadow:0 20px 60px rgba(0,0,0,.45);color:#111}
+  .edu-box h2{color:#b61b1b;margin:0 0 8px}
+  .edu-flags{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px}
+  .edu-flag{background:#fff6f6;border:1px solid #ffd6d6;padding:8px 10px;border-radius:8px;font-size:13px;color:#b61b1b}
+
+  /* shock layer & crash screen */
+  #shockLayer{display:none;position:fixed;inset:0;z-index:9000;background:rgba(0,0,0,0.92);color:#fff;align-items:center;justify-content:center;flex-direction:column}
+  #shockContent{padding:20px;max-width:92%;transform:translateY(-10%);text-align:center}
+  .glitch{position:relative;display:inline-block}
+  .glitch::before,.glitch::after{content:attr(data-text);position:absolute;left:0;top:0;opacity:.8}
+  .glitch::before{transform:translate(-2px,-2px);color:#f44}
+  .glitch::after{transform:translate(2px,2px);color:#0ff}
+  @keyframes flicker{0%{opacity:1}20%{opacity:0.2;transform:translateX(-6px)}40%{opacity:1;transform:translateX(6px)}60%{opacity:0.3;transform:translateX(-4px)}80%{opacity:1;transform:translateX(4px)}100%{opacity:1;transform:translateX(0)}}
+  #crashScreen{display:none;position:fixed;inset:0;z-index:10000;background:#000;color:#fff;font-family:monospace;padding:28px;overflow:auto}
+  #crashFill{height:100%;width:0%;background:#ff3b30;transition:width .3s ease}
+
+  /* responsive */
+  @media (max-width:480px){
+    :root{--card-w:92%}
+    .browser-bar{padding:6px 8px}
+    .url-bar{font-size:12px}
+    .card{padding:20px}
+  }
+</style>
+</head>
+<body>
+
+<!-- FAKE BROWSER BAR -->
+<div class="browser-bar">
+  <div class="browser-left">
+    <div class="dot d1"></div><div class="dot d2"></div><div class="dot d3"></div>
+  </div>
+
+  <div class="url-bar" aria-hidden="true">
+    <div class="padlock" style="gap:6px;align-items:center">
+      <svg viewBox="0 0 24 24" style="width:14px;height:14px" fill="none">
+        <path d="M7 10v7a3 3 0 0 0 3 3h4a3 3 0 0 0 3-3v-7" stroke="#d93025" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M8 8l8 8M16 8L8 16" stroke="#d93025" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <div class="not-secure">Not secure</div>
+    </div>
+    <div class="fake-domain" title="http://secure-google-login.example-phish.test">
+      http://secure-google-login.example-phish.test
+    </div>
+  </div>
+</div>
+
+<!-- MAIN CARD -->
+<div class="wrap">
+  <div class="card" role="main" aria-labelledby="signin-title">
+    <div class="logo" aria-hidden="true"><span>G</span><span>o</span><span>o</span><span>g</span><span>l</span><span>e</span></div>
+
+    <h1 id="signin-title">Sign in</h1>
+    <p class="sub">to continue to Gmail</p>
+
+    <!-- EMAIL STEP -->
+    <div id="step-email" aria-live="polite">
+      <div class="field">
+        <input id="emailInput" type="email" placeholder="Email or phone" autocomplete="off" />
+      </div>
+
+      <div class="actions">
+        <a class="link" href="#" onclick="alert('Contoh simulasi edukasi - jangan masukkan data nyata.');return false;">Learn more</a>
+        <button class="btn" id="nextBtn">Next</button>
+      </div>
+
+      <div class="small-muted">
+        Not your device? Use Guest mode to sign in privately.
+      </div>
+    </div>
+
+    <!-- PASSWORD STEP -->
+    <div id="step-pass" style="display:none">
+      <div class="email-summary" id="emailSummary" style="display:flex;align-items:center;gap:10px;padding:10px;border-radius:8px;background:#f6f9ff;border:1px solid #e8f0fe;margin-top:12px">
+        <div style="font-size:13px;color:var(--muted)">Sign in as</div>
+        <div id="emailDisplay" style="font-weight:600"></div>
+      </div>
+
+      <div class="field">
+        <input id="passInput" type="password" placeholder="Enter your password" autocomplete="off" />
+      </div>
+
+      <div class="actions">
+        <a class="link" href="#" onclick="goBack();return false;">Back</a>
+        <button class="btn" id="signInBtn">Sign in</button>
+      </div>
+
+      <div class="small-muted">By continuing, you agree to the Terms of Service.</div>
+    </div>
+
+    <!-- captured preview (visual only) -->
+    <div id="capturedPreview" class="captured" style="display:none" aria-hidden="true"></div>
+  </div>
+</div>
+
+<!-- SHOCK LAYER (immediate dramatic) -->
+<div id="shockLayer" aria-hidden="true">
+  <div id="shockContent">
+    <h1 id="shockTitle" style="font-size:26px;margin:0 0 8px">!!! SECURITY BREACH !!!</h1>
+    <div id="randomText" style="font-family:monospace;font-size:14px;line-height:1.4;white-space:pre-wrap;"></div>
+    <div style="margin-top:20px">
+      <button class="btn" onclick="forceCrash()">Simulate crash now</button>
+      <button class="btn" style="background:#888;margin-left:8px" onclick="abortShock()">Abort</button>
+    </div>
+  </div>
+</div>
+
+<!-- CRASH SCREEN -->
+<div id="crashScreen" aria-hidden="true">
+  <div style="max-width:820px;margin:40px auto;text-align:center">
+    <div id="crashHeader" style="font-size:24px;font-weight:700;margin-bottom:18px">SYSTEM ERROR</div>
+    <div id="crashMsg" style="font-size:16px;line-height:1.6">
+      Kernel panic — unrecoverable error.<br>
+      Attempting emergency recovery...
+    </div>
+
+    <div style="margin-top:22px">
+      <div style="width:90%;height:14px;background:#222;margin:12px auto;border-radius:6px;overflow:hidden">
+        <div id="crashFill" style="height:100%;width:0%;background:#ff3b30"></div>
+      </div>
+      <div id="crashPercent" style="font-size:14px;margin-top:6px">0%</div>
+    </div>
+
+    <div style="margin-top:26px">
+      <button class="btn" onclick="recoverFromCrash()">RECOVER</button>
+      <button class="btn" style="background:#666;margin-left:8px" onclick="hardReset()">RESET</button>
+    </div>
+
+    <p style="margin-top:16px;font-size:12px;color:#bbb">(Simulasi visual — tidak mengubah perangkatmu.)</p>
+  </div>
+</div>
+
+<!-- EDU MESSAGE (will show AFTER EDU_DELAY_MS) -->
+<div class="edu-modal" id="eduModal" role="dialog" aria-modal="true">
+  <div class="edu-box">
+    <h2>⚠️ Edukasi: Contoh PHISHING</h2>
+    <p>
+      Kamu sedang melihat <strong>simulasi</strong> untuk video edukasi. Halaman ini <strong>tidak</strong> mengirim data ke internet — semua data tetap di perangkat.
+      Di dunia nyata, tampilan seperti ini sering dipakai untuk menipu (phishing).
+    </p>
+
+    <div class="edu-flags">
+      <div class="edu-flag">🔎 URL mencurigakan / bukan google.com</div>
+      <div class="edu-flag">🔒 Not secure (tidak ada HTTPS)</div>
+      <div class="edu-flag">🕵️ Permintaan password pada situs asing</div>
+    </div>
+
+    <p style="margin-top:12px">
+      Tips cepat:
+      <ul>
+        <li>Periksa alamat domain — hati-hati pada typo/subdomain.</li>
+        <li>Jangan masukkan password jika ragu.</li>
+        <li>Gunakan verifikasi dua langkah (2FA).</li>
+      </ul>
+    </p>
+
+    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:10px">
+      <button class="btn" onclick="closeEdu()">Tutup</button>
+      <button class="btn secondary" onclick="downloadGuide()">Download guide (simulasi)</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/*
+  simulasi-phishing-full.html
+  - SAFETY: This page does NOT send or store data anywhere. Local simulation only.
+  - EDU_DELAY_MS controls how long (ms) until the educational modal shows after the "crash" begins.
+*/
+const EDU_DELAY_MS = 60000; // 60 seconds - change if needed
+
+/* Elements */
+const emailInput = document.getElementById('emailInput');
+const nextBtn = document.getElementById('nextBtn');
+const stepEmail = document.getElementById('step-email');
+const stepPass = document.getElementById('step-pass');
+const emailDisplay = document.getElementById('emailDisplay');
+const passInput = document.getElementById('passInput');
+const signInBtn = document.getElementById('signInBtn');
+const capturedPreview = document.getElementById('capturedPreview');
+const shockLayer = document.getElementById('shockLayer');
+const randomTextEl = document.getElementById('randomText');
+const crashScreen = document.getElementById('crashScreen');
+const crashFill = document.getElementById('crashFill');
+const crashPercent = document.getElementById('crashPercent');
+const eduModal = document.getElementById('eduModal');
+
+let eduTimer = null;
+let randomInterval = null;
+let audioCtx = null;
+let crashInterval = null;
+
+function shake(el){
+  el.animate([
+    { transform: 'translateX(0)' },
+    { transform: 'translateX(-8px)' },
+    { transform: 'translateX(8px)' },
+    { transform: 'translateX(0)' }
+  ], { duration: 320, iterations: 1});
+}
+
+/* Email -> next */
+nextBtn.addEventListener('click', ()=>{
+  const email = emailInput.value.trim();
+  if(!email){
+    shake(emailInput); return;
+  }
+  emailDisplay.textContent = email;
+  stepEmail.style.display = 'none';
+  stepPass.style.display = 'block';
+  passInput.focus();
+});
+
+/* back */
+function goBack(){
+  stepPass.style.display = 'none';
+  stepEmail.style.display = 'block';
+  emailInput.focus();
+}
+
+/* Sign in -> start simulation sequence */
+signInBtn.addEventListener('click', ()=>{
+  const pw = passInput.value;
+  if(!pw){
+    shake(passInput); return;
+  }
+
+  // show captured preview for realism (local only)
+  capturedPreview.style.display = 'block';
+  capturedPreview.textContent = `Simulated captured data (local only)\nemail: ${emailDisplay.textContent}\npassword: ${'*'.repeat(Math.min(12,pw.length))}`;
+
+  // disable button
+  signInBtn.disabled = true;
+  signInBtn.textContent = 'Processing...';
+
+  // small delay then start shock & crash
+  setTimeout(()=>{
+    startShockSequence();
+  }, 700);
+});
+
+/* ===== SHOCK (dramatic) ===== */
+const phrases = [
+  "Accessing credentials...",
+  "Dumping cookies...",
+  "Bypassing 2FA module...",
+  "Exfiltrating data packets...",
+  "Writing to /tmp/session.log",
+  "🔥 unauthorized activity detected",
+  "Connection: *.*.*.*:443",
+  "Encrypting... corrupted sectors found",
+  "Session token: [redacted]",
+  "Root access: GRANTED"
+];
+
+function startShockSequence(){
+  // show shock layer
+  shockLayer.style.display = 'flex';
+  startRandomText();
+  playAlarmSequence();
+  // escalate to crash after short dramatic time
+  setTimeout(simulateCrashSequence, 4200);
+}
+
+function abortShock(){
+  // user cancels the dramatic sequence (for recordings)
+  stopRandomText(); stopAlarm(); shockLayer.style.display = 'none';
+  // allow retry by resetting UI
+  resetToStartState();
+}
+
+function forceCrash(){
+  stopRandomText(); stopAlarm(); shockLayer.style.display = 'none';
+  simulateCrashSequence();
+}
+
+/* random text generator */
+let tick = 0;
+function startRandomText(){
+  tick = 0; randomTextEl.textContent = '';
+  randomInterval = setInterval(()=>{
+    tick++;
+    const lines = [];
+    for(let i=0;i<5;i++){
+      let base = phrases[Math.floor(Math.random()*phrases.length)];
+      if(Math.random() > 0.55) base = garble(base);
+      lines.push(base);
+    }
+    randomTextEl.innerHTML = lines.map(s => "<span class='glitch' data-text='"+escapeHtml(s)+"'>"+escapeHtml(s)+"</span>").join("\n");
+    if(tick % 5 === 0){
+      shockLayer.style.animation = 'flicker 560ms linear 1';
+    }
+  }, 280);
+}
+
+function stopRandomText(){
+  clearInterval(randomInterval); randomInterval = null; randomTextEl.textContent = '';
+}
+
+function garble(s){
+  const chars = "0123456789abcdef!@#$%^&*()[]{}<>/?;:~";
+  return s.split("").map(ch => (Math.random()>0.7? chars[Math.floor(Math.random()*chars.length)] : ch)).join("");
+}
+
+/* Audio beeps (may be blocked by mobile browsers until user interacts) */
+function playAlarmSequence(){
+  try {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    let now = audioCtx.currentTime;
+    playBeep(880,0.08,0.01,now);
+    playBeep(660,0.08,0.18,now);
+    playBeep(440,0.12,0.36,now);
+  } catch(e){ console.warn("Audio blocked/unsupported",e); audioCtx=null; }
+}
+function playBeep(freq,dur,delay,baseTime){
+  if(!audioCtx) return;
+  let o = audioCtx.createOscillator();
+  let g = audioCtx.createGain();
+  o.type = 'sawtooth';
+  o.frequency.value = freq;
+  g.gain.value = 0.0001;
+  o.connect(g); g.connect(audioCtx.destination);
+  o.start(baseTime + delay);
+  g.gain.linearRampToValueAtTime(0.18, baseTime + delay + 0.01);
+  g.gain.linearRampToValueAtTime(0.0, baseTime + delay + dur);
+  o.stop(baseTime + delay + dur + 0.02);
+}
+function stopAlarm(){
+  try { if(audioCtx && audioCtx.state !== 'closed') audioCtx.close(); } catch(e){}
+  audioCtx = null;
+}
+
+/* ===== CRASH SEQUENCE (visual) ===== */
+function simulateCrashSequence(){
+  crashScreen.style.display = 'block';
+  let perc = 0;
+  crashFill.style.width = '0%';
+  crashPercent.textContent = '0%';
+
+  crashInterval = setInterval(()=>{
+    perc += Math.floor(Math.random()*9)+2; if(perc>100) perc=100;
+    crashFill.style.width = perc + '%';
+    crashPercent.textContent = perc + '%';
+    if(perc >= 100){
+      clearInterval(crashInterval);
+      crashInterval = null;
+      setTimeout(()=> {
+        document.getElementById('crashMsg').innerHTML = "Recovery failed. Manual RECOVER required.";
+      }, 600);
+      // schedule educational modal AFTER EDU_DELAY_MS
+      scheduleEduModal();
+    }
+  }, 260);
+}
+
+/* RECOVER/RESET */
+function recoverFromCrash(){
+  crashScreen.style.display = 'none';
+  stopAlarm();
+  // show educational modal immediately if it's ready, else show overlay fallback
+  if(eduModal.classList.contains('show')){
+    // already showing (fine)
+  } else {
+    // show overlay to inform user (if edu not yet triggered)
+    eduModal.classList.add('show');
+  }
+  resetToStartState();
+}
+
+function hardReset(){
+  if(confirm("Reset simulation (reload page)?")) location.reload();
+}
+
+/* Reset UI for recording again */
+function resetToStartState(){
+  signInBtn.disabled = false; signInBtn.textContent = 'Sign in';
+  capturedPreview.style.display = 'none'; capturedPreview.textContent = '';
+  passInput.value = '';
+  stepPass.style.display = 'none';
+  stepEmail.style.display = 'block';
+  // clear any scheduled edu timer
+  if(eduTimer){ clearTimeout(eduTimer); eduTimer = null; }
+}
+
+/* ===== EDUCATIONAL MODAL SCHEDULING ===== */
+function scheduleEduModal(){
+  // If there's an existing timer, clear
+  if(eduTimer) clearTimeout(eduTimer);
+  // Start countdown (EDU_DELAY_MS); after that, show modal automatically
+  eduTimer = setTimeout(()=> {
+    showEduModal();
+  }, EDU_DELAY_MS);
+}
+
+function showEduModal(){
+  eduModal.classList.add('show');
+  // stop any audio, random text etc
+  stopRandomText(); stopAlarm();
+}
+
+function closeEdu(){
+  eduModal.classList.remove('show');
+}
+
+/* Download guide (dummy file) */
+function downloadGuide(){
+  const content = [
+    "Panduan Singkat Edukasi PHISHING",
+    "",
+    "1. Periksa selalu alamat domain.",
+    "2. Jangan klik link dari sumber yang tidak dikenal.",
+    "3. Aktifkan 2FA (verifikasi dua langkah).",
+    "",
+    "Ini hanyalah file simulasi untuk tugas video."
+  ].join("\n");
+  const blob = new Blob([content], { type: 'text/plain' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = 'panduan-phishing-simulasi.txt';
+  document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(url);
+}
+
+/* helpers */
+function escapeHtml(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/'/g,'&#39;').replace(/"/g,'&quot;'); }
+
+/* If user clicks abort to return quickly, ensure everything cleaned */
+window.addEventListener('beforeunload', ()=>{ try{ stopAlarm(); }catch(e){} });
+
+/* Optional helper for fast-run in single take:
+   If you want the educational modal to appear even if user recovers early,
+   uncomment: scheduleEduModal(); after simulateCrashSequence() call above.
+*/
+
+/* End of script */
+</script>
+</body>
+</html>
